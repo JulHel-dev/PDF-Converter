@@ -73,6 +73,11 @@ IMAGE_QUALITY = 95
 MAX_FILE_SIZE_MB = 100  # Maximum file size in megabytes
 FILE_SIZE_WARN_MB = 50  # Warn threshold (log warning but allow)
 
+# Batch processing settings
+BATCH_MAX_CONCURRENT = 4  # Maximum concurrent batch conversion workers
+BATCH_MEMORY_LIMIT_MB = 2000  # Pause batch if memory exceeds this (2GB)
+BATCH_CHECKPOINT_INTERVAL = 10  # Save progress every N files
+
 # Security: Allowed base folders for file operations
 # CRITICAL: Only paths within these folders are permitted
 ALLOWED_BASE_FOLDERS = [
