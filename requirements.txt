@@ -9,7 +9,7 @@ python-docx>=1.1.0  # Word document processing
 openpyxl>=3.1.0  # Excel/spreadsheet processing
 
 # Image Processing
-Pillow>=10.0.0  # Image manipulation and conversion
+Pillow>=10.2.0  # Image manipulation and conversion (security patched)
 
 # Data Format Processing
 PyYAML>=6.0  # YAML support
