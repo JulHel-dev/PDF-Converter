@@ -5,7 +5,6 @@ Modern web-based interface for file conversion with OCR detection and logging.
 """
 import streamlit as st
 import os
-import sys
 from pathlib import Path
 from datetime import datetime
 from src.config import settings
@@ -162,7 +161,8 @@ def main():
                         import fitz
                         with fitz.open(temp_path) as doc:
                             page_count = str(len(doc))
-                    except:
+                    except Exception:
+                        # Failed to open PDF, keep default page_count value
                         pass
                 st.metric("Pages", page_count)
             
@@ -188,9 +188,10 @@ def main():
                 
                 # Advanced options (expandable)
                 with st.expander("⚙️ Advanced Options"):
-                    preserve_metadata = st.checkbox("Preserve metadata", value=True)
+                    # Note: These options are placeholders for future enhancements
+                    _ = st.checkbox("Preserve metadata", value=True)
                     if input_format in ['png', 'jpeg', 'jpg']:
-                        dpi = st.slider("Image DPI", min_value=72, max_value=300, value=150)
+                        _ = st.slider("Image DPI", min_value=72, max_value=300, value=150)
                 
                 # Convert button
                 col1, col2 = st.columns([1, 3])
@@ -257,7 +258,8 @@ def main():
             # Clean up temp file
             try:
                 os.unlink(temp_path)
-            except:
+            except Exception:
+                # Temp file cleanup failed, not critical
                 pass
     
     # Conversion history

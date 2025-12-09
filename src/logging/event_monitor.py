@@ -13,7 +13,7 @@ import os
 import csv
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
 from src.config import monitor_config
 
 class EventMonitor:

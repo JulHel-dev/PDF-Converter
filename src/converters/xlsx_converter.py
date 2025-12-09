@@ -4,8 +4,7 @@ Excel/Spreadsheet Converter
 Handles Excel and spreadsheet conversions.
 Supported: XLSX/XLS/ODS ↔ CSV, JSON, TXT, PDF
 """
-import os
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from src.converters.base_converter import BaseConverter
 
 

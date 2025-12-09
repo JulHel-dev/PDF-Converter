@@ -4,7 +4,7 @@ OCR and Text Layer Detection
 Detects presence of OCR/text layers in documents.
 NOTE: Does NOT perform OCR. Only detects if OCR has been applied externally.
 """
-from typing import Optional, Dict
+from typing import Dict
 from src.logging.event_monitor import EventMonitor
 
 

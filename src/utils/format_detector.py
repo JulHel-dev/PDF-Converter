@@ -2,7 +2,6 @@
 Format detection utilities
 Auto-detect file formats and validate supported conversions
 """
-import os
 import magic
 from typing import Optional
 from src.config.settings import CONVERSION_MATRIX, SUPPORTED_INPUT_FORMATS
@@ -48,7 +47,8 @@ def detect_format(filepath: str) -> Optional[str]:
             'image/webp': 'webp',
         }
         return format_map.get(mime)
-    except:
+    except Exception:
+        # Failed to detect format via libmagic, fallback to extension
         pass
     
     return ext if ext in SUPPORTED_INPUT_FORMATS else None

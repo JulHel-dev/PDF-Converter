@@ -5,8 +5,7 @@ Handles image format conversions.
 Supported formats: PNG, JPEG, TIFF, BMP, GIF, WEBP
 Also supports Images → PDF
 """
-import os
-from typing import Optional, Dict, List
+from typing import List
 from src.converters.base_converter import BaseConverter
 
 
@@ -250,7 +249,12 @@ class ImageConverter(BaseConverter):
             from PIL import Image
             
             img = Image.open(input_path)
-            img_resized = img.resize(size, Image.Resampling.LANCZOS)
+            # Use backward-compatible resampling method
+            try:
+                resample = Image.Resampling.LANCZOS
+            except AttributeError:
+                resample = Image.LANCZOS
+            img_resized = img.resize(size, resample)
             
             # Preserve format
             output_format = img.format or 'PNG'

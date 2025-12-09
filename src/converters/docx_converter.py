@@ -100,8 +100,12 @@ class DocxConverter(BaseConverter):
                     'created': str(core_props.created) if core_props.created else None,
                     'modified': str(core_props.modified) if core_props.modified else None
                 }
-            except:
-                pass
+            except Exception as e:
+                # Failed to extract core properties; log and continue
+                self.monitor.log_event('core_properties_extraction_failed', {
+                    'file': docx_path,
+                    'error': str(e)
+                }, severity='WARNING')
             
             # Extract paragraphs
             for para in doc.paragraphs:

@@ -4,8 +4,6 @@ Markdown Converter
 Handles Markdown conversions.
 Supported: MD ↔ HTML, TXT, PDF, DOCX
 """
-import os
-from typing import Optional, Dict
 from src.converters.base_converter import BaseConverter
 
 
@@ -210,11 +208,6 @@ th {{
             # First convert to HTML
             import tempfile
             import markdown
-            
-            html_content = markdown.markdown(
-                markdown_text,
-                extensions=['extra', 'tables']
-            )
             
             # Note: Actual PDF generation would require libraries like
             # pdfkit, weasyprint, or reportlab

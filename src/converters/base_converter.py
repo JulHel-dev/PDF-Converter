@@ -3,10 +3,10 @@ Abstract base class for all format converters
 Provides common functionality and interface for all converters
 """
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, List
+from typing import Dict, List
 import os
 from src.logging.event_monitor import EventMonitor
-from src.utils.file_utils import is_valid_file, get_file_size_mb
+from src.utils.file_utils import get_file_size_mb
 
 
 class BaseConverter(ABC):

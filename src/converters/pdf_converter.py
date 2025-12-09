@@ -110,7 +110,8 @@ class PDFConverter(BaseConverter):
                 'text': '',
                 'pages': [],
                 'metadata': {},
-                'page_count': 0
+                'page_count': 0,
+                'pdf_path': pdf_path  # Store path for later use in image conversion
             }
             
             with fitz.open(pdf_path) as doc:
