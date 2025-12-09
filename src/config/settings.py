@@ -21,6 +21,7 @@ BASE_DIR = get_base_path()
 LOG_FOLDER = os.path.join(BASE_DIR, "Log")
 INPUT_FOLDER = os.path.join(BASE_DIR, "Input")
 OUTPUT_FOLDER = os.path.join(BASE_DIR, "Output")
+TMP_FOLDER = os.path.join(BASE_DIR, "Temp")
 
 def ensure_folders_exist():
     """Create required folders if they don't exist (critical for .exe distribution)."""
@@ -29,6 +30,7 @@ def ensure_folders_exist():
         os.path.join(LOG_FOLDER, 'diagnostics'),
         INPUT_FOLDER,
         OUTPUT_FOLDER,
+        TMP_FOLDER,
     ]
     for folder in required_folders:
         os.makedirs(folder, exist_ok=True)
@@ -65,8 +67,20 @@ CONVERSION_MATRIX = {
 
 # Rendering settings
 DEFAULT_DPI = 150
-MAX_FILE_SIZE_MB = 100
 IMAGE_QUALITY = 95
+
+# Security settings
+MAX_FILE_SIZE_MB = 100  # Maximum file size in megabytes
+FILE_SIZE_WARN_MB = 50  # Warn threshold (log warning but allow)
+
+# Security: Allowed base folders for file operations
+# CRITICAL: Only paths within these folders are permitted
+ALLOWED_BASE_FOLDERS = [
+    LOG_FOLDER,
+    INPUT_FOLDER,
+    OUTPUT_FOLDER,
+    TMP_FOLDER,
+]
 
 # UI settings
 WINDOW_TITLE = "Universal File Converter"
