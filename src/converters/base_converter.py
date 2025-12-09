@@ -1,0 +1,143 @@
+"""
+Abstract base class for all format converters
+Provides common functionality and interface for all converters
+"""
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, List
+import os
+from src.logging.event_monitor import EventMonitor
+from src.utils.file_utils import is_valid_file, get_file_size_mb
+
+
+class BaseConverter(ABC):
+    """Abstract base class for all format converters."""
+    
+    def __init__(self):
+        self.monitor = EventMonitor()
+        self.supported_input_formats: List[str] = []
+        self.supported_output_formats: List[str] = []
+    
+    @abstractmethod
+    def convert(self, input_path: str, output_path: str, output_format: str) -> bool:
+        """
+        Convert input file to target format.
+        
+        Args:
+            input_path: Path to input file
+            output_path: Path for output file
+            output_format: Target format (without dot)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        pass
+    
+    def validate_input(self, input_path: str) -> bool:
+        """
+        Validate input file exists, is readable, and not zero-byte.
+        
+        Args:
+            input_path: Path to input file
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        if not os.path.exists(input_path):
+            self.monitor.log_event('validation_failed', 
+                {'file': input_path, 'reason': 'File not found'}, 
+                severity='ERROR')
+            return False
+        
+        if not os.path.isfile(input_path):
+            self.monitor.log_event('validation_failed', 
+                {'file': input_path, 'reason': 'Path is not a file'}, 
+                severity='ERROR')
+            return False
+        
+        if os.path.getsize(input_path) == 0:
+            self.monitor.log_event('validation_failed', 
+                {'file': input_path, 'reason': 'Zero-byte file'}, 
+                severity='ERROR')
+            return False
+        
+        # Check file size
+        from src.config.settings import MAX_FILE_SIZE_MB
+        file_size_mb = get_file_size_mb(input_path)
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            self.monitor.log_event('validation_warning', 
+                {'file': input_path, 
+                 'reason': f'Large file ({file_size_mb:.1f} MB)',
+                 'max_size': MAX_FILE_SIZE_MB}, 
+                severity='WARNING')
+        
+        return True
+    
+    def validate_output(self, output_path: str) -> bool:
+        """
+        Validate output path is writable.
+        
+        Args:
+            output_path: Path for output file
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        output_dir = os.path.dirname(output_path)
+        
+        if output_dir and not os.path.exists(output_dir):
+            try:
+                os.makedirs(output_dir, exist_ok=True)
+            except Exception as e:
+                self.monitor.log_event('validation_failed', 
+                    {'path': output_path, 
+                     'reason': 'Cannot create output directory',
+                     'error': str(e)}, 
+                    severity='ERROR')
+                return False
+        
+        return True
+    
+    def extract_metadata(self, input_path: str) -> Dict:
+        """
+        Extract and return file metadata.
+        
+        Args:
+            input_path: Path to input file
+            
+        Returns:
+            Dictionary of metadata
+        """
+        metadata = {
+            'filename': os.path.basename(input_path),
+            'size_bytes': os.path.getsize(input_path),
+            'size_mb': get_file_size_mb(input_path),
+            'extension': os.path.splitext(input_path)[1].lstrip('.'),
+        }
+        
+        return metadata
+    
+    def get_supported_conversions(self) -> Dict[str, List[str]]:
+        """
+        Return dict of supported input→output format mappings.
+        
+        Returns:
+            Dictionary mapping input formats to list of output formats
+        """
+        result = {}
+        for input_fmt in self.supported_input_formats:
+            result[input_fmt] = self.supported_output_formats
+        return result
+    
+    def is_format_supported(self, input_format: str, output_format: str) -> bool:
+        """
+        Check if conversion between formats is supported.
+        
+        Args:
+            input_format: Input format
+            output_format: Output format
+            
+        Returns:
+            True if supported
+        """
+        return (input_format.lower() in self.supported_input_formats and 
+                output_format.lower() in self.supported_output_formats)
