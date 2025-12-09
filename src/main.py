@@ -13,6 +13,7 @@ from src.config.settings import ensure_folders_exist, CONVERSION_MATRIX
 from src.logging.event_monitor import EventMonitor
 from src.utils.format_detector import detect_format, is_conversion_supported
 from src.utils.file_utils import list_files_in_directory, get_output_path
+from src.utils.shutdown_handler import install_shutdown_handlers
 
 
 def get_converter(input_format: str):
@@ -200,6 +201,9 @@ def run_gui():
 
 def main():
     """Main entry point."""
+    # Install graceful shutdown handlers
+    install_shutdown_handlers()
+    
     # CRITICAL: Ensure folders exist (for .exe distribution)
     ensure_folders_exist()
     
