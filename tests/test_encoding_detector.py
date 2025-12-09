@@ -1,8 +1,5 @@
 """Tests for encoding detection."""
 
-import pytest
-import os
-from pathlib import Path
 from src.utils.encoding_detector import (
     EncodingDetector,
     detect_encoding,

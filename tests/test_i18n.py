@@ -1,6 +1,5 @@
 """Tests for internationalization support."""
 
-import pytest
 from src.i18n.messages import (
     MESSAGES,
     get_message,

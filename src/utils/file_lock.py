@@ -10,7 +10,6 @@ References:
 """
 
 import os
-import sys
 import time
 from typing import Optional
 from contextlib import contextmanager
@@ -192,12 +191,14 @@ class FileLock:
                 try:
                     self.lock_file.close()
                 except Exception:
+                    # Ignore errors during file close (file may already be closed)
                     pass
             
             try:
                 if os.path.exists(self.lock_file_path):
                     os.remove(self.lock_file_path)
             except Exception:
+                # Ignore errors during lock file removal (file may not exist or be in use)
                 pass
     
     def _release_unix(self):

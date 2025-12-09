@@ -13,7 +13,6 @@ import os
 import sys
 import unicodedata
 from typing import List, Optional
-from pathlib import Path
 
 # Import will work with current logging module name
 try:
@@ -160,8 +159,6 @@ class PathValidator:
             
             # Check if path starts with base
             # Also allow exact match (path == base without trailing sep)
-            path_with_sep = canonical_path + os.sep if not canonical_path.endswith(os.sep) else canonical_path
-            
             return (canonical_path + os.sep).startswith(canonical_base) or \
                    canonical_path == canonical_base.rstrip(os.sep)
                    

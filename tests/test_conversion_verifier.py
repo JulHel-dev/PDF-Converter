@@ -1,14 +1,10 @@
 """Tests for conversion verification."""
 
-import pytest
-import os
 import json
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from src.utils.conversion_verifier import (
     ConversionVerifier,
-    verify_conversion,
-    ConversionVerificationError
+    verify_conversion
 )
 
 

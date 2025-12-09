@@ -2,9 +2,7 @@
 
 import pytest
 import os
-import tempfile
 import time
-from pathlib import Path
 from src.utils.log_rotation import (
     LogRotationManager,
     LogRotationConfig,

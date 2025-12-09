@@ -3,7 +3,6 @@
 import pytest
 import os
 import sys
-from pathlib import Path
 from src.security.temp_file_security import (
     SecureTempFile,
     create_secure_temp_file,

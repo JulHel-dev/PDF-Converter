@@ -7,15 +7,12 @@ blocks all known path traversal attack vectors.
 
 import pytest
 import os
-import tempfile
 import shutil
 from pathlib import Path
 from src.security.path_security import (
     PathValidator,
     PathSecurityError,
-    is_path_safe,
-    validate_path,
-    safe_open
+    is_path_safe
 )
 
 
@@ -49,7 +46,7 @@ class TestPathTraversalPrevention:
     
     def test_null_byte_injection_blocked(self, validator, test_base_dir):
         """Test null byte injection attempts."""
-        evil_path = os.path.join(test_base_dir, "file.txt\x00.pdf")
+        os.path.join(test_base_dir, "file.txt\x00.pdf")
         # The path after null removal should be safe
         safe_path = os.path.join(test_base_dir, "file.txt.pdf")
         # Create the safe version to test
@@ -129,7 +126,7 @@ class TestPathValidatorIntegration:
     def test_convenience_functions(self, tmp_path):
         """Test convenience functions work correctly."""
         test_dir = str(tmp_path)
-        validator = PathValidator(allowed_bases=[test_dir])
+        PathValidator(allowed_bases=[test_dir])
         
         # Create a safe path
         safe_file = os.path.join(test_dir, "test.txt")

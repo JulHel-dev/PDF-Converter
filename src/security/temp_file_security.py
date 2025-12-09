@@ -9,7 +9,6 @@ import sys
 import tempfile
 import atexit
 from typing import Optional, List
-from pathlib import Path
 
 try:
     from src.logging.event_monitor import EventMonitor

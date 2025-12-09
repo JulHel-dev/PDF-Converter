@@ -1,10 +1,8 @@
 """Tests for cross-platform file locking."""
 
-import pytest
 import os
 import time
 import threading
-from pathlib import Path
 from src.utils.file_lock import (
     FileLock,
     FileLockError,
@@ -209,10 +207,11 @@ class TestLockChecker:
         lock = FileLock(str(test_file))
         lock.acquire()
         
-        locked = is_file_locked(str(test_file))
+        is_file_locked(str(test_file))
         
         # Behavior may vary by platform
         # On some systems, is_file_locked might still return False
+        # At minimum, we tested the function executes without error
         
         lock.release()
 

@@ -109,7 +109,7 @@ class TestBatchProcessor:
         cancel_thread = threading.Thread(target=cancel_later)
         cancel_thread.start()
         
-        result = processor.process_batch(items, process)
+        processor.process_batch(items, process)
         cancel_thread.join()
         
         # Should have processed some but not all
@@ -197,7 +197,7 @@ class TestBatchProcessor:
         pause_thread = threading.Thread(target=pause_resume)
         pause_thread.start()
         
-        result = processor.process_batch(items, process)
+        processor.process_batch(items, process)
         pause_thread.join()
         
         # Should complete eventually

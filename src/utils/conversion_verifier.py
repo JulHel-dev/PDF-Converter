@@ -12,7 +12,6 @@ References:
 import os
 from typing import Optional, Dict, List, Tuple
 from pathlib import Path
-import mimetypes
 
 try:
     from src.logging.event_monitor import EventMonitor
@@ -342,6 +341,7 @@ class ConversionVerifier:
                 )
         
         except Exception:
+            # Ignore size comparison errors (e.g., input file deleted)
             pass
         
         return issues

@@ -1,6 +1,5 @@
 """Tests for version tracking."""
 
-import pytest
 import sys
 from src.config.settings import APP_VERSION, APP_BUILD_DATE, log_version_info
 

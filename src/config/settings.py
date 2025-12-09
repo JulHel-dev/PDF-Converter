@@ -105,6 +105,7 @@ def log_version_info():
             'platform': sys.platform
         }, severity='INFO')
     except Exception:
+        # Ignore errors during version logging (EventMonitor may not be available)
         pass
 
 # Supported input formats (all formats from conversion matrix)

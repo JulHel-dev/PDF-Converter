@@ -9,9 +9,7 @@ References:
 - Unicode best practices
 """
 
-import os
-from typing import Optional, Dict
-import codecs
+from typing import Optional
 
 try:
     from src.logging.event_monitor import EventMonitor

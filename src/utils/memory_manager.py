@@ -15,8 +15,6 @@ References:
 """
 
 import gc
-import os
-import sys
 import weakref
 from typing import Any, Callable, Optional, Dict, List
 from contextlib import contextmanager
@@ -229,9 +227,6 @@ class MemoryManager:
         # Check if we have too many tracked objects
         if len(self._tracked_objects) > 1000:
             leaks.append(f"High number of tracked objects: {len(self._tracked_objects)}")
-        
-        # Get garbage collection stats
-        gc_stats = gc.get_stats()
         
         # Check for uncollectable objects
         uncollectable = len(gc.garbage)

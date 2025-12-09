@@ -11,7 +11,6 @@ References:
 import os
 from enum import Enum
 from typing import Optional, Tuple
-from pathlib import Path
 
 try:
     from src.logging.event_monitor import EventMonitor

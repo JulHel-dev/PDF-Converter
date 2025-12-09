@@ -9,7 +9,6 @@ from src.logging.event_monitor import EventMonitor
 from src.utils.file_utils import get_file_size_mb
 from src.security.path_security import validate_path, PathSecurityError
 from src.security.size_security import validate_file_size
-from src.security.filename_security import sanitize_filename
 
 
 class BaseConverter(ABC):

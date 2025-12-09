@@ -5,7 +5,7 @@ import os
 import shutil
 from typing import Optional, List
 from pathlib import Path
-from src.security.path_security import validate_path, is_path_safe, PathSecurityError
+from src.security.path_security import is_path_safe
 from src.security.filename_security import sanitize_filename
 
 

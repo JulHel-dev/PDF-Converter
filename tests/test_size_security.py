@@ -1,9 +1,6 @@
 """Tests for file size validation."""
 
 import pytest
-import os
-import tempfile
-from pathlib import Path
 from src.security.size_security import (
     FileSizeValidator,
     FileSizeError,

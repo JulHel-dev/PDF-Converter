@@ -1,6 +1,5 @@
 """Tests for architecture documentation and compliance."""
 
-import pytest
 import os
 
 

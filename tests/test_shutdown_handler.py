@@ -1,6 +1,5 @@
 """Tests for graceful shutdown handler."""
 
-import pytest
 import signal
 import os
 from src.utils.shutdown_handler import (
@@ -184,6 +183,7 @@ class TestSignalHandling:
             # So we catch SystemExit
             handler._signal_handler(signal.SIGINT, None)
         except SystemExit:
+            # Expected exception from signal handler
             pass
         
         # Cleanup should have been executed
