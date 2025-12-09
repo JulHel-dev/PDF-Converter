@@ -89,7 +89,23 @@ ALLOWED_BASE_FOLDERS = [
 
 # UI settings
 WINDOW_TITLE = "Universal File Converter"
-APP_VERSION = "1.0.0"
+APP_VERSION = "2.0.0"  # Phase 2: Security & Robustness Complete
+APP_BUILD_DATE = "2025-12-09"
+
+# Version information logged on startup
+def log_version_info():
+    """Log version information on application startup."""
+    try:
+        from src.logging.event_monitor import EventMonitor
+        monitor = EventMonitor()
+        monitor.log_event('application_startup', {
+            'version': APP_VERSION,
+            'build_date': APP_BUILD_DATE,
+            'python_version': f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            'platform': sys.platform
+        }, severity='INFO')
+    except Exception:
+        pass
 
 # Supported input formats (all formats from conversion matrix)
 SUPPORTED_INPUT_FORMATS = list(CONVERSION_MATRIX.keys())

@@ -9,7 +9,7 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config.settings import ensure_folders_exist, CONVERSION_MATRIX
+from src.config.settings import ensure_folders_exist, CONVERSION_MATRIX, log_version_info
 from src.logging.event_monitor import EventMonitor
 from src.utils.format_detector import detect_format, is_conversion_supported
 from src.utils.file_utils import list_files_in_directory, get_output_path
@@ -201,6 +201,9 @@ def run_gui():
 
 def main():
     """Main entry point."""
+    # Log version information
+    log_version_info()
+    
     # Install graceful shutdown handlers
     install_shutdown_handlers()
     
