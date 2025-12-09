@@ -31,6 +31,19 @@ from .temp_file_security import (
     cleanup_temp_files
 )
 
+from .input_validation import (
+    InputValidator,
+    ValidationError,
+    InputType,
+    get_input_validator,
+    validate_string,
+    validate_integer,
+    validate_float,
+    validate_boolean,
+    validate_format,
+    validate_dpi
+)
+
 __all__ = [
     # Path security
     'PathValidator',
@@ -55,4 +68,16 @@ __all__ = [
     'create_secure_temp_file',
     'SecureTempFile',
     'cleanup_temp_files',
+    
+    # Input validation
+    'InputValidator',
+    'ValidationError',
+    'InputType',
+    'get_input_validator',
+    'validate_string',
+    'validate_integer',
+    'validate_float',
+    'validate_boolean',
+    'validate_format',
+    'validate_dpi',
 ]
