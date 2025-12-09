@@ -1,10 +1,12 @@
 """
-File utility functions for file operations
+File utility functions for file operations with security enhancements
 """
 import os
 import shutil
 from typing import Optional, List
 from pathlib import Path
+from src.security.path_security import validate_path, is_path_safe, PathSecurityError
+from src.security.filename_security import sanitize_filename
 
 
 def get_file_extension(filepath: str) -> str:
@@ -35,6 +37,7 @@ def is_valid_file(filepath: str) -> bool:
 def get_output_path(input_path: str, output_dir: str, new_extension: str) -> str:
     """
     Generate output file path based on input path and new extension.
+    Includes filename sanitization for security.
     
     Args:
         input_path: Path to input file
@@ -44,8 +47,14 @@ def get_output_path(input_path: str, output_dir: str, new_extension: str) -> str
     Returns:
         Complete output file path
     """
+    # Extract and sanitize the filename
     input_filename = Path(input_path).stem
-    return os.path.join(output_dir, f"{input_filename}.{new_extension}")
+    safe_filename = sanitize_filename(input_filename)
+    
+    # Ensure extension is safe
+    safe_extension = sanitize_filename(new_extension).lstrip('.')
+    
+    return os.path.join(output_dir, f"{safe_filename}.{safe_extension}")
 
 
 def list_files_in_directory(directory: str, extensions: Optional[List[str]] = None) -> List[str]:
@@ -79,7 +88,7 @@ def list_files_in_directory(directory: str, extensions: Optional[List[str]] = No
 
 def safe_copy_file(source: str, destination: str) -> bool:
     """
-    Safely copy a file with error handling.
+    Safely copy a file with error handling and security validation.
     
     Args:
         source: Source file path
@@ -89,6 +98,12 @@ def safe_copy_file(source: str, destination: str) -> bool:
         True if successful, False otherwise
     """
     try:
+        # Security: Validate both paths
+        if not is_path_safe(source, 'read'):
+            return False
+        if not is_path_safe(destination, 'write'):
+            return False
+        
         ensure_directory_exists(os.path.dirname(destination))
         shutil.copy2(source, destination)
         return True
@@ -98,7 +113,7 @@ def safe_copy_file(source: str, destination: str) -> bool:
 
 def safe_remove_file(filepath: str) -> bool:
     """
-    Safely remove a file with error handling.
+    Safely remove a file with error handling and security validation.
     
     Args:
         filepath: File to remove
@@ -107,6 +122,10 @@ def safe_remove_file(filepath: str) -> bool:
         True if successful, False otherwise
     """
     try:
+        # Security: Validate path before deletion
+        if not is_path_safe(filepath, 'delete'):
+            return False
+        
         if os.path.exists(filepath):
             os.remove(filepath)
         return True
@@ -117,6 +136,7 @@ def safe_remove_file(filepath: str) -> bool:
 def generate_unique_filename(directory: str, base_name: str, extension: str) -> str:
     """
     Generate a unique filename by appending numbers if file exists.
+    Includes filename sanitization for security.
     
     Args:
         directory: Target directory
@@ -124,14 +144,18 @@ def generate_unique_filename(directory: str, base_name: str, extension: str) -> 
         extension: File extension (without dot)
         
     Returns:
-        Unique filename
+        Unique filename (sanitized)
     """
+    # Sanitize inputs
+    safe_base = sanitize_filename(base_name)
+    safe_ext = sanitize_filename(extension).lstrip('.')
+    
     counter = 1
-    filename = f"{base_name}.{extension}"
+    filename = f"{safe_base}.{safe_ext}"
     filepath = os.path.join(directory, filename)
     
     while os.path.exists(filepath):
-        filename = f"{base_name}_{counter}.{extension}"
+        filename = f"{safe_base}_{counter}.{safe_ext}"
         filepath = os.path.join(directory, filename)
         counter += 1
     

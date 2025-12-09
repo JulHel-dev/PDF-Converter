@@ -77,6 +77,12 @@ class PathValidator:
                     # TMP_FOLDER not yet in settings, use default
                     tmp_folder = os.path.join(BASE_DIR, "Temp")
                     self.allowed_bases.append(tmp_folder)
+                
+                # Add system temp directory for testing and temporary operations
+                import tempfile
+                system_temp = tempfile.gettempdir()
+                self.allowed_bases.append(system_temp)
+                
             except ImportError:
                 # Fallback to BASE_DIR if settings not available
                 self.allowed_bases = [BASE_DIR]

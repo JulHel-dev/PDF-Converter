@@ -2,6 +2,7 @@
 Streamlit UI for Universal File Converter
 
 Modern web-based interface for file conversion with OCR detection and logging.
+Includes security enhancements for file uploads.
 """
 import streamlit as st
 import os
@@ -12,6 +13,9 @@ from src.logging.event_monitor import EventMonitor
 from src.utils.format_detector import detect_format, get_supported_conversions
 from src.utils.file_utils import get_file_size_mb
 from src.detection.ocr_detector import OCRDetector
+from src.security.size_security import FileSizeValidator
+from src.security.filename_security import sanitize_filename
+from src.security.temp_file_security import SecureTempFile
 
 
 def get_converter(input_format: str):
@@ -118,149 +122,160 @@ def main():
     )
     
     if uploaded_file:
-        # Save uploaded file temporarily
-        import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_file.name).suffix) as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            temp_path = tmp_file.name
-        
-        # Detect format
-        input_format = detect_format(temp_path)
-        
-        if not input_format:
-            st.error("❌ Could not detect file format. Please ensure the file is valid.")
-            os.unlink(temp_path)
+        # Security: Validate file size before processing
+        size_validator = FileSizeValidator()
+        if not size_validator.validate_upload(uploaded_file, uploaded_file.name):
+            st.error(f"❌ File is too large. Maximum allowed size is {settings.MAX_FILE_SIZE_MB} MB.")
+            monitor.log_event('upload_rejected', {
+                'filename': uploaded_file.name,
+                'reason': 'file_too_large'
+            }, severity='WARNING')
         else:
-            # File analysis panel
-            st.subheader("📊 File Analysis")
+            # Security: Sanitize filename
+            safe_filename = sanitize_filename(uploaded_file.name)
             
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Format", input_format.upper())
-            
-            with col2:
-                file_size = get_file_size_mb(temp_path)
-                st.metric("Size", f"{file_size:.2f} MB")
-            
-            with col3:
-                # Text layer check for PDFs
-                text_status = "N/A"
-                if input_format == 'pdf':
-                    with st.spinner("Checking text layer..."):
-                        ocr_detector = OCRDetector()
-                        has_text = ocr_detector.check_pdf_text_layer(temp_path)
-                        text_status = "✅ Present" if has_text else "❌ Missing"
-                st.metric("Text Layer", text_status)
-            
-            with col4:
-                # Page count for PDFs
-                page_count = "N/A"
-                if input_format == 'pdf':
-                    try:
-                        import fitz
-                        with fitz.open(temp_path) as doc:
-                            page_count = str(len(doc))
-                    except Exception:
-                        # Failed to open PDF, keep default page_count value
-                        pass
-                st.metric("Pages", page_count)
-            
-            # Warning for PDFs without text layer
-            if input_format == 'pdf' and text_status == "❌ Missing":
-                st.warning("💡 **No text layer detected!** This PDF appears to be scanned or image-based. "
-                          "For best results, run OCR first using tools like:\n"
-                          "- Foxit PDF Compressor\n"
-                          "- Adobe Acrobat Pro\n"
-                          "- Online OCR services")
-            
-            # Output format selection
-            st.subheader("🎯 Conversion Settings")
-            
-            available_outputs = get_supported_conversions(input_format)
-            
-            if available_outputs:
-                output_format = st.selectbox(
-                    "Convert to:",
-                    available_outputs,
-                    help="Select target format for conversion"
-                )
+            # Save uploaded file to secure temp file
+            with SecureTempFile(suffix=Path(safe_filename).suffix) as temp_file:
+                temp_file.write_bytes(uploaded_file.getvalue())
+                temp_path = temp_file.path
                 
-                # Advanced options (expandable)
-                with st.expander("⚙️ Advanced Options"):
-                    # Note: These options are placeholders for future enhancements
-                    _ = st.checkbox("Preserve metadata", value=True)
-                    if input_format in ['png', 'jpeg', 'jpg']:
-                        _ = st.slider("Image DPI", min_value=72, max_value=300, value=150)
+                monitor.log_event('file_uploaded', {
+                    'original_filename': uploaded_file.name,
+                    'sanitized_filename': safe_filename,
+                    'size_mb': round(len(uploaded_file.getvalue()) / (1024 * 1024), 2)
+                }, severity='INFO')
                 
-                # Convert button
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    convert_button = st.button("🚀 Convert", type="primary", use_container_width=True)
+                # Detect format
+                input_format = detect_format(temp_path)
                 
-                if convert_button:
-                    # Perform conversion
-                    output_filename = f"{Path(uploaded_file.name).stem}.{output_format}"
-                    output_path = os.path.join(settings.OUTPUT_FOLDER, output_filename)
+                if not input_format:
+                    st.error("❌ Could not detect file format. Please ensure the file is valid.")
+                else:
+                    # File analysis panel
+                    st.subheader("📊 File Analysis")
                     
-                    # Get converter
-                    converter = get_converter(input_format)
+                    col1, col2, col3, col4 = st.columns(4)
                     
-                    if not converter:
-                        st.error(f"❌ No converter available for {input_format.upper()}")
-                    else:
-                        with st.spinner(f"Converting to {output_format.upper()}..."):
-                            success = converter.convert(temp_path, output_path, output_format)
-                        
-                        if success:
-                            st.success(f"✅ Conversion complete!")
-                            
-                            # Provide download button
+                    with col1:
+                        st.metric("Format", input_format.upper())
+                    
+                    with col2:
+                        file_size = get_file_size_mb(temp_path)
+                        st.metric("Size", f"{file_size:.2f} MB")
+                    
+                    with col3:
+                        # Text layer check for PDFs
+                        text_status = "N/A"
+                        if input_format == 'pdf':
+                            with st.spinner("Checking text layer..."):
+                                ocr_detector = OCRDetector()
+                                has_text = ocr_detector.check_pdf_text_layer(temp_path)
+                                text_status = "✅ Present" if has_text else "❌ Missing"
+                        st.metric("Text Layer", text_status)
+                    
+                    with col4:
+                        # Page count for PDFs
+                        page_count = "N/A"
+                        if input_format == 'pdf':
                             try:
-                                with open(output_path, 'rb') as f:
-                                    file_data = f.read()
-                                
-                                st.download_button(
-                                    label="📥 Download Converted File",
-                                    data=file_data,
-                                    file_name=output_filename,
-                                    mime='application/octet-stream',
-                                    use_container_width=True
-                                )
-                                
-                                # Add to history
-                                st.session_state.conversion_history.append({
-                                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                    'input': uploaded_file.name,
-                                    'output': output_filename,
-                                    'from': input_format,
-                                    'to': output_format,
-                                    'status': 'success'
-                                })
-                                
-                            except Exception as e:
-                                st.error(f"❌ Could not read output file: {e}")
-                        else:
-                            st.error("❌ Conversion failed. Check event logs for details.")
+                                import fitz
+                                with fitz.open(temp_path) as doc:
+                                    page_count = str(len(doc))
+                            except Exception:
+                                # Failed to open PDF, keep default page_count value
+                                pass
+                        st.metric("Pages", page_count)
+                    
+                    # Warning for PDFs without text layer
+                    if input_format == 'pdf' and text_status == "❌ Missing":
+                        st.warning("💡 **No text layer detected!** This PDF appears to be scanned or image-based. "
+                                  "For best results, run OCR first using tools like:\n"
+                                  "- Foxit PDF Compressor\n"
+                                  "- Adobe Acrobat Pro\n"
+                                  "- Online OCR services")
+                    
+                    # Output format selection
+                    st.subheader("🎯 Conversion Settings")
+                    
+                    available_outputs = get_supported_conversions(input_format)
+                    
+                    if available_outputs:
+                        output_format = st.selectbox(
+                            "Convert to:",
+                            available_outputs,
+                            help="Select target format for conversion"
+                        )
+                        
+                        # Advanced options (expandable)
+                        with st.expander("⚙️ Advanced Options"):
+                            # Note: These options are placeholders for future enhancements
+                            _ = st.checkbox("Preserve metadata", value=True)
+                            if input_format in ['png', 'jpeg', 'jpg']:
+                                _ = st.slider("Image DPI", min_value=72, max_value=300, value=150)
+                        
+                        # Convert button
+                        col1, col2 = st.columns([1, 3])
+                        with col1:
+                            convert_button = st.button("🚀 Convert", type="primary", use_container_width=True)
+                        
+                        if convert_button:
+                            # Perform conversion
+                            # Security: Sanitize output filename
+                            safe_output_name = sanitize_filename(f"{Path(safe_filename).stem}.{output_format}")
+                            output_path = os.path.join(settings.OUTPUT_FOLDER, safe_output_name)
                             
-                            # Add to history
-                            st.session_state.conversion_history.append({
-                                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                'input': uploaded_file.name,
-                                'output': output_filename,
-                                'from': input_format,
-                                'to': output_format,
-                                'status': 'failed'
-                            })
-            else:
-                st.warning(f"⚠️ No conversions available for {input_format.upper()}")
-            
-            # Clean up temp file
-            try:
-                os.unlink(temp_path)
-            except Exception:
-                # Temp file cleanup failed, not critical
-                pass
+                            # Get converter
+                            converter = get_converter(input_format)
+                            
+                            if not converter:
+                                st.error(f"❌ No converter available for {input_format.upper()}")
+                            else:
+                                with st.spinner(f"Converting to {output_format.upper()}..."):
+                                    success = converter.convert(temp_path, output_path, output_format)
+                                
+                                if success:
+                                    st.success(f"✅ Conversion complete!")
+                                    
+                                    # Provide download button
+                                    try:
+                                        with open(output_path, 'rb') as f:
+                                            file_data = f.read()
+                                        
+                                        st.download_button(
+                                            label="📥 Download Converted File",
+                                            data=file_data,
+                                            file_name=safe_output_name,
+                                            mime='application/octet-stream',
+                                            use_container_width=True
+                                        )
+                                        
+                                        # Add to history
+                                        st.session_state.conversion_history.append({
+                                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                            'input': uploaded_file.name,
+                                            'output': safe_output_name,
+                                            'from': input_format,
+                                            'to': output_format,
+                                            'status': 'success'
+                                        })
+                                        
+                                    except Exception as e:
+                                        st.error(f"❌ Could not read output file: {e}")
+                                else:
+                                    st.error("❌ Conversion failed. Check event logs for details.")
+                                    
+                                    # Add to history
+                                    st.session_state.conversion_history.append({
+                                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                        'input': uploaded_file.name,
+                                        'output': safe_output_name,
+                                        'from': input_format,
+                                        'to': output_format,
+                                        'status': 'failed'
+                                    })
+                    else:
+                        st.warning(f"⚠️ No conversions available for {input_format.upper()}")
+                # Note: temp_path cleanup handled automatically by SecureTempFile context manager
     
     # Conversion history
     if st.session_state.conversion_history:
