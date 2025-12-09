@@ -248,7 +248,7 @@ class EventMonitor:
             
             for i in range(max(0, line_num - context_range - 1), 
                           min(len(lines), line_num + context_range)):
-                prefix = ">>> " if i == line_num - 1 else "    "
+                prefix = monitor_config.CODE_CONTEXT_MARKER if i == line_num - 1 else monitor_config.CODE_CONTEXT_INDENT
                 context.append(f"{prefix}{i + 1}: {lines[i].rstrip()}")
             
             return context

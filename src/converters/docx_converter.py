@@ -276,7 +276,16 @@ class DocxConverter(BaseConverter):
         return True
     
     def _write_pdf(self, content: Dict, output_path: str) -> bool:
-        """Write content as PDF (requires intermediate conversion)."""
+        """
+        Write content as PDF (requires intermediate conversion).
+        
+        Note: Direct DOCX→PDF conversion requires external tools like:
+        - LibreOffice (headless mode)
+        - Microsoft Word (COM automation on Windows)
+        - Online conversion services
+        
+        This is a known limitation documented in CONVERSION_MATRIX.md
+        """
         try:
             # Create a temporary DOCX first, then convert to PDF
             from docx import Document
@@ -309,9 +318,10 @@ class DocxConverter(BaseConverter):
             # Note: Actual PDF conversion would require additional libraries
             # like docx2pdf (Windows-only) or conversion services
             # For now, we'll note this limitation
-            self.monitor.log_event('pdf_conversion_note', {
-                'message': 'PDF conversion from DOCX requires additional setup',
-                'suggestion': 'Use Microsoft Word, LibreOffice, or cloud conversion services'
+            self.monitor.log_event('pdf_conversion_limitation', {
+                'message': 'Direct DOCX→PDF conversion not implemented',
+                'suggestion': 'Use Microsoft Word, LibreOffice, or cloud conversion services',
+                'alternatives': ['docx2pdf (Windows)', 'libreoffice --headless --convert-to pdf', 'pandoc']
             }, severity='WARNING')
             
             # Clean up temp file

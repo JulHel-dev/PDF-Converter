@@ -38,3 +38,11 @@ CODE_CONTEXT_LINES = 5
 
 # Maximum stack trace depth to capture on errors
 MAX_STACK_TRACE_DEPTH = 10
+
+# Code context formatting
+CODE_CONTEXT_MARKER = '>>> '
+CODE_CONTEXT_INDENT = '    '
+
+# OCR Detection
+# Minimum character count to consider a page as having meaningful text
+MIN_TEXT_CHARS_PER_PAGE = 50

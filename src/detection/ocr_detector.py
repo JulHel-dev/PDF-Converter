@@ -22,7 +22,7 @@ class OCRDetector:
         """
         Check if PDF has embedded text layer.
         
-        Returns True if >50% of pages have meaningful text (>50 chars).
+        Returns True if >50% of pages have meaningful text (>MIN_TEXT_CHARS_PER_PAGE chars).
         
         Args:
             pdf_path: Path to PDF file
@@ -32,6 +32,7 @@ class OCRDetector:
         """
         try:
             import fitz  # PyMuPDF
+            from src.config.monitor_config import MIN_TEXT_CHARS_PER_PAGE
             
             with fitz.open(pdf_path) as doc:
                 total_pages = len(doc)
@@ -48,7 +49,7 @@ class OCRDetector:
                 pages_with_text = 0
                 for page in doc:
                     text = page.get_text().strip()
-                    if len(text) > 50:  # Meaningful text threshold
+                    if len(text) > MIN_TEXT_CHARS_PER_PAGE:  # Meaningful text threshold
                         pages_with_text += 1
                 
                 has_text = (pages_with_text / total_pages) > 0.5
@@ -146,6 +147,7 @@ class OCRDetector:
         """
         try:
             import fitz
+            from src.config.monitor_config import MIN_TEXT_CHARS_PER_PAGE
             
             with fitz.open(pdf_path) as doc:
                 total_pages = len(doc)
@@ -155,7 +157,7 @@ class OCRDetector:
                 
                 pages_with_text = sum(
                     1 for page in doc 
-                    if len(page.get_text().strip()) > 50
+                    if len(page.get_text().strip()) > MIN_TEXT_CHARS_PER_PAGE
                 )
                 
                 return pages_with_text / total_pages
@@ -179,6 +181,7 @@ class OCRDetector:
         """
         try:
             import fitz
+            from src.config.monitor_config import MIN_TEXT_CHARS_PER_PAGE
             
             stats = {
                 'total_pages': 0,
@@ -197,7 +200,7 @@ class OCRDetector:
                     char_count = len(text)
                     stats['total_characters'] += char_count
                     
-                    if char_count > 50:
+                    if char_count > MIN_TEXT_CHARS_PER_PAGE:
                         stats['pages_with_text'] += 1
                 
                 if stats['total_pages'] > 0:
