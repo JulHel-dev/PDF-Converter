@@ -34,11 +34,13 @@ Convert between **20+ file formats** with intelligent OCR detection, comprehensi
 
 ### 🎨 **Dual Interface**
 - **CLI**: Fast, scriptable command-line interface
-- **GUI**: Modern web-based Streamlit interface
+- **GUI**: Native Tkinter GUI for standalone .exe / Web-based Streamlit for development
+- Automatic UI detection (frozen → Tkinter, development → Streamlit)
 - Batch processing support for 1000+ files
 
 ### 📦 **Standalone Executable**
 - Windows .exe with all dependencies bundled
+- Native Tkinter GUI (PyInstaller compatible)
 - No Python installation required
 - One-click deployment
 - Portable - runs from USB drive
