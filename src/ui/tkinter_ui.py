@@ -23,30 +23,8 @@ from src.security.size_security import FileSizeValidator
 from src.ui.themes import THEME_LIGHT, FONTS, ICONS, LOG_COLORS
 
 
-def get_converter(input_format: str):
-    """Get appropriate converter instance for the input format."""
-    input_format = input_format.lower()
-    
-    if input_format == 'pdf':
-        from src.converters.pdf_converter import PDFConverter
-        return PDFConverter()
-    elif input_format in ['docx', 'doc']:
-        from src.converters.docx_converter import DocxConverter
-        return DocxConverter()
-    elif input_format in ['xlsx', 'xls', 'ods']:
-        from src.converters.xlsx_converter import XlsxConverter
-        return XlsxConverter()
-    elif input_format in ['png', 'jpeg', 'jpg', 'tiff', 'tif', 'bmp', 'gif', 'webp']:
-        from src.converters.image_converter import ImageConverter
-        return ImageConverter()
-    elif input_format in ['md', 'markdown']:
-        from src.converters.markdown_converter import MarkdownConverter
-        return MarkdownConverter()
-    elif input_format in ['json', 'yaml', 'yml', 'xml', 'csv']:
-        from src.converters.data_converter import DataConverter
-        return DataConverter()
-    else:
-        return None
+# Import converter factory from main module to avoid duplication
+from src.main import get_converter
 
 
 class TkinterConverterApp:
@@ -926,7 +904,13 @@ class TkinterConverterApp:
             }, severity='ERROR')
     
     def _load_pdf_pages(self):
-        """Load all PDF pages as images."""
+        """
+        Load all PDF pages as images.
+        
+        Note: For very large PDFs (>50 pages), this loads all pages into memory
+        which may cause performance issues. Future enhancement could implement
+        lazy loading to only keep current page and adjacent pages in memory.
+        """
         try:
             import fitz
             from PIL import Image
@@ -934,6 +918,13 @@ class TkinterConverterApp:
             self.pdf_images = []
             
             with fitz.open(str(self.current_file)) as doc:
+                # For large PDFs, consider limiting preview or implementing lazy loading
+                if len(doc) > 100:
+                    self._add_log_entry(
+                        f"Warning: Large PDF ({len(doc)} pages) may take time to load preview",
+                        'WARNING'
+                    )
+                
                 dpi = 100
                 zoom = dpi / 72.0
                 mat = fitz.Matrix(zoom, zoom)
@@ -1019,24 +1010,24 @@ class TkinterConverterApp:
         try:
             from PIL import Image, ImageTk
             
-            img = Image.open(str(self.current_file))
+            # Use context manager for proper resource cleanup
+            with Image.open(str(self.current_file)) as img:
+                # Scale to fit canvas
+                canvas_width = self.preview_canvas.winfo_width()
+                canvas_height = self.preview_canvas.winfo_height()
+                
+                # Calculate scale factor
+                scale_w = canvas_width / img.width
+                scale_h = canvas_height / img.height
+                scale = min(scale_w, scale_h, 1.0)  # Don't upscale
+                
+                new_width = int(img.width * scale)
+                new_height = int(img.height * scale)
+                
+                resized = img.resize((new_width, new_height), Image.LANCZOS)
+                self.preview_photo = ImageTk.PhotoImage(resized)
             
-            # Scale to fit canvas
-            canvas_width = self.preview_canvas.winfo_width()
-            canvas_height = self.preview_canvas.winfo_height()
-            
-            # Calculate scale factor
-            scale_w = canvas_width / img.width
-            scale_h = canvas_height / img.height
-            scale = min(scale_w, scale_h, 1.0)  # Don't upscale
-            
-            new_width = int(img.width * scale)
-            new_height = int(img.height * scale)
-            
-            resized = img.resize((new_width, new_height), Image.LANCZOS)
-            self.preview_photo = ImageTk.PhotoImage(resized)
-            
-            # Display on canvas
+            # Display on canvas (after image is closed)
             self.preview_canvas.delete("all")
             x = (canvas_width - new_width) // 2
             y = (canvas_height - new_height) // 2
