@@ -5,8 +5,9 @@ Compatible with PyInstaller .exe bundling
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
-import sys
 import threading
+import platform
+import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -15,7 +16,7 @@ from datetime import datetime
 from src.config import settings
 from src.logging.event_monitor import EventMonitor
 from src.utils.format_detector import detect_format, get_supported_conversions
-from src.utils.file_utils import get_file_size_mb, get_output_path
+from src.utils.file_utils import get_file_size_mb, list_files_in_directory
 from src.detection.ocr_detector import OCRDetector
 from src.security.path_security import validate_path, PathSecurityError
 from src.security.filename_security import sanitize_filename
@@ -136,7 +137,7 @@ class TkinterConverterApp:
         
         # Bind keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.open_file())
-        self.root.bind('<Control-O>', lambda e: self.open_folder())
+        self.root.bind('<Control-Shift-O>', lambda e: self.open_folder())
         self.root.bind('<F5>', lambda e: self.start_conversion())
     
     def _setup_toolbar(self):
@@ -559,7 +560,6 @@ class TkinterConverterApp:
             safe_path = validate_path(folder_path, 'read_input')
             
             # Count supported files
-            from src.utils.file_utils import list_files_in_directory
             files = list_files_in_directory(safe_path, settings.SUPPORTED_INPUT_FORMATS)
             
             if not files:
@@ -794,8 +794,8 @@ class TkinterConverterApp:
                     'output': os.path.basename(output_path)
                 }, severity='INFO')
                 
-                self.root.after(0, lambda: self._on_conversion_complete(
-                    True, output_path
+                self.root.after(0, lambda path=output_path: self._on_conversion_complete(
+                    True, path
                 ))
             else:
                 self.monitor.log_event('conversion_failed', {
@@ -813,8 +813,9 @@ class TkinterConverterApp:
                 'error_type': type(e).__name__
             }, severity='ERROR')
             
-            self.root.after(0, lambda: self._on_conversion_complete(
-                False, str(e)
+            error_msg = str(e)
+            self.root.after(0, lambda msg=error_msg: self._on_conversion_complete(
+                False, msg
             ))
     
     def _on_conversion_complete(self, success: bool, result: str):
@@ -839,15 +840,15 @@ class TkinterConverterApp:
             )
             
             if response:
-                import subprocess
-                import platform
-                
-                if platform.system() == 'Windows':
-                    os.startfile(settings.OUTPUT_FOLDER)
-                elif platform.system() == 'Darwin':  # macOS
-                    subprocess.run(['open', settings.OUTPUT_FOLDER])
-                else:  # Linux
-                    subprocess.run(['xdg-open', settings.OUTPUT_FOLDER])
+                try:
+                    if platform.system() == 'Windows':
+                        os.startfile(settings.OUTPUT_FOLDER)
+                    elif platform.system() == 'Darwin':  # macOS
+                        subprocess.run(['open', settings.OUTPUT_FOLDER], check=True)
+                    else:  # Linux
+                        subprocess.run(['xdg-open', settings.OUTPUT_FOLDER], check=True)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Could not open folder: {e}")
         else:
             self._update_status("Conversion failed")
             self._add_log_entry(f"Conversion failed: {result}", 'ERROR')
@@ -968,8 +969,12 @@ class TkinterConverterApp:
             new_width = int(img.width * zoom_factor)
             new_height = int(img.height * zoom_factor)
             
-            # Resize image
-            resized = img.resize((new_width, new_height), Image.LANCZOS)
+            # Resize image (handle Pillow 10+ deprecation)
+            try:
+                resampling = Image.Resampling.LANCZOS
+            except AttributeError:
+                resampling = Image.LANCZOS
+            resized = img.resize((new_width, new_height), resampling)
             
             # Convert to PhotoImage
             self.preview_photo = ImageTk.PhotoImage(resized)
@@ -1024,7 +1029,12 @@ class TkinterConverterApp:
                 new_width = int(img.width * scale)
                 new_height = int(img.height * scale)
                 
-                resized = img.resize((new_width, new_height), Image.LANCZOS)
+                # Resize image (handle Pillow 10+ deprecation)
+                try:
+                    resampling = Image.Resampling.LANCZOS
+                except AttributeError:
+                    resampling = Image.LANCZOS
+                resized = img.resize((new_width, new_height), resampling)
                 self.preview_photo = ImageTk.PhotoImage(resized)
             
             # Display on canvas (after image is closed)

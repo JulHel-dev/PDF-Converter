@@ -44,14 +44,35 @@ THEME_DARK = {
     'log_fg': '#FFFFFF',
 }
 
-# Font specifications
-FONTS = {
-    'heading': ('Segoe UI', 14, 'bold'),
-    'subheading': ('Segoe UI', 11, 'bold'),
-    'body': ('Segoe UI', 10),
-    'small': ('Segoe UI', 9),
-    'monospace': ('Consolas', 10),
-}
+# Platform-specific font specifications with fallbacks
+import platform
+
+_system = platform.system()
+
+if _system == 'Darwin':  # macOS
+    FONTS = {
+        'heading': ('SF Pro Display', 14, 'bold'),
+        'subheading': ('SF Pro Display', 11, 'bold'),
+        'body': ('SF Pro Text', 10),
+        'small': ('SF Pro Text', 9),
+        'monospace': ('Menlo', 10),
+    }
+elif _system == 'Linux':
+    FONTS = {
+        'heading': ('Ubuntu', 14, 'bold'),
+        'subheading': ('Ubuntu', 11, 'bold'),
+        'body': ('Ubuntu', 10),
+        'small': ('Ubuntu', 9),
+        'monospace': ('Ubuntu Mono', 10),
+    }
+else:  # Windows and others
+    FONTS = {
+        'heading': ('Segoe UI', 14, 'bold'),
+        'subheading': ('Segoe UI', 11, 'bold'),
+        'body': ('Segoe UI', 10),
+        'small': ('Segoe UI', 9),
+        'monospace': ('Consolas', 10),
+    }
 
 # Icons (Unicode/Emoji - work on all platforms)
 ICONS = {
