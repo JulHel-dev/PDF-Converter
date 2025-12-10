@@ -45,9 +45,12 @@ a = Analysis(
         'markdown.extensions.tables',
         'yaml',
         
-        # UI
-        'streamlit',
-        'streamlit.web.cli',
+        # Tkinter GUI (PyInstaller compatible)
+        'tkinter',
+        'tkinter.ttk',
+        'tkinter.filedialog',
+        'tkinter.messagebox',
+        'PIL.ImageTk',  # Critical for Tkinter image display
         
         # Utilities
         'magic',
@@ -63,6 +66,18 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
+        # Exclude Streamlit (incompatible with PyInstaller)
+        'streamlit',
+        'streamlit.web',
+        'streamlit.web.cli',
+        'altair',
+        'tornado',
+        'watchdog',
+        'validators',
+        'gitpython',
+        'pydeck',
+        
+        # Exclude heavy unused packages
         'matplotlib',
         'numpy',
         'pandas',
