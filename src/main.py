@@ -176,27 +176,76 @@ def run_batch(args):
 
 
 def run_gui():
-    """Launch GUI mode."""
+    """Launch GUI mode (adaptive based on environment)."""
     monitor = EventMonitor()
-    monitor.log_event('gui_launch', {}, severity='INFO')
     
-    try:
-        # Try to launch Streamlit UI
-        from src.ui.app_ui import main as streamlit_main
-        streamlit_main()
-    except ImportError:
-        print("❌ Error: Streamlit not installed")
-        print("   Install with: pip install streamlit")
-        monitor.log_event('gui_launch_failed', {
-            'error': 'Streamlit not installed'
-        }, severity='ERROR')
-        return False
-    except Exception as e:
-        print(f"❌ Error launching GUI: {e}")
-        monitor.log_event('gui_launch_failed', {
-            'error': str(e)
-        }, severity='ERROR')
-        return False
+    # Check if running as PyInstaller bundle
+    is_frozen = getattr(sys, 'frozen', False)
+    
+    if is_frozen:
+        # Use Tkinter for .exe (Streamlit incompatible with PyInstaller)
+        monitor.log_event('gui_launch', {
+            'ui_type': 'tkinter',
+            'reason': 'frozen_executable'
+        }, severity='INFO')
+        
+        try:
+            from src.ui.tkinter_ui import main as tkinter_main
+            tkinter_main()
+            return True
+        except Exception as e:
+            print(f"❌ Error launching GUI: {e}")
+            monitor.log_event('gui_launch_failed', {
+                'ui_type': 'tkinter',
+                'error': str(e),
+                'error_type': type(e).__name__
+            }, severity='ERROR')
+            return False
+    else:
+        # Development mode - try Streamlit first, fall back to Tkinter
+        try:
+            from src.ui.app_ui import main as streamlit_main
+            monitor.log_event('gui_launch', {
+                'ui_type': 'streamlit'
+            }, severity='INFO')
+            streamlit_main()
+            return True
+        except ImportError:
+            # Streamlit not installed, use Tkinter
+            monitor.log_event('gui_launch', {
+                'ui_type': 'tkinter',
+                'reason': 'streamlit_not_installed'
+            }, severity='INFO')
+            
+            try:
+                from src.ui.tkinter_ui import main as tkinter_main
+                tkinter_main()
+                return True
+            except Exception as e:
+                print(f"❌ Error launching GUI: {e}")
+                monitor.log_event('gui_launch_failed', {
+                    'error': str(e)
+                }, severity='ERROR')
+                return False
+        except Exception as e:
+            print(f"❌ Error launching Streamlit: {e}")
+            print("Falling back to Tkinter...")
+            monitor.log_event('streamlit_error', {
+                'error': str(e)
+            }, severity='WARNING')
+            
+            # Fall back to Tkinter
+            try:
+                from src.ui.tkinter_ui import main as tkinter_main
+                tkinter_main()
+                return True
+            except Exception as e2:
+                print(f"❌ Error launching Tkinter: {e2}")
+                monitor.log_event('gui_launch_failed', {
+                    'streamlit_error': str(e),
+                    'tkinter_error': str(e2)
+                }, severity='ERROR')
+                return False
 
 
 def main():
