@@ -7,6 +7,8 @@ from typing import Dict, List
 import os
 from src.logging.event_monitor import EventMonitor
 from src.utils.file_utils import get_file_size_mb
+from src.security.path_security import validate_path, PathSecurityError
+from src.security.size_security import validate_file_size
 
 
 class BaseConverter(ABC):
@@ -35,6 +37,7 @@ class BaseConverter(ABC):
     def validate_input(self, input_path: str) -> bool:
         """
         Validate input file exists, is readable, and not zero-byte.
+        Includes security validation for path traversal and file size.
         
         Args:
             input_path: Path to input file
@@ -42,6 +45,16 @@ class BaseConverter(ABC):
         Returns:
             True if valid, False otherwise
         """
+        # Security: Validate path to prevent traversal attacks
+        try:
+            safe_path = validate_path(input_path, 'read_input')
+            input_path = safe_path  # Use the canonical safe path
+        except PathSecurityError as e:
+            self.monitor.log_event('path_security_violation', 
+                {'file': input_path, 'reason': str(e)}, 
+                severity='CRITICAL')
+            return False
+        
         if not os.path.exists(input_path):
             self.monitor.log_event('validation_failed', 
                 {'file': input_path, 'reason': 'File not found'}, 
@@ -60,21 +73,23 @@ class BaseConverter(ABC):
                 severity='ERROR')
             return False
         
-        # Check file size
-        from src.config.settings import MAX_FILE_SIZE_MB
-        file_size_mb = get_file_size_mb(input_path)
-        if file_size_mb > MAX_FILE_SIZE_MB:
-            self.monitor.log_event('validation_warning', 
+        # Security: Validate file size to prevent DoS
+        if not validate_file_size(input_path):
+            from src.config.settings import MAX_FILE_SIZE_MB
+            file_size_mb = get_file_size_mb(input_path)
+            self.monitor.log_event('file_size_exceeded', 
                 {'file': input_path, 
-                 'reason': f'Large file ({file_size_mb:.1f} MB)',
-                 'max_size': MAX_FILE_SIZE_MB}, 
-                severity='WARNING')
+                 'size_mb': file_size_mb,
+                 'max_size_mb': MAX_FILE_SIZE_MB}, 
+                severity='ERROR')
+            return False
         
         return True
     
     def validate_output(self, output_path: str) -> bool:
         """
-        Validate output path is writable.
+        Validate output path is writable and secure.
+        Includes security validation for path traversal.
         
         Args:
             output_path: Path for output file
@@ -82,18 +97,32 @@ class BaseConverter(ABC):
         Returns:
             True if valid, False otherwise
         """
-        output_dir = os.path.dirname(output_path)
+        # Security: Validate output path to prevent traversal attacks
+        try:
+            safe_path = validate_path(output_path, 'write_output')
+            output_path = safe_path  # Use the canonical safe path
+        except PathSecurityError as e:
+            self.monitor.log_event('path_security_violation', 
+                {'file': output_path, 'reason': str(e)}, 
+                severity='CRITICAL')
+            return False
         
+        # Validate output directory exists and is writable
+        output_dir = os.path.dirname(output_path)
         if output_dir and not os.path.exists(output_dir):
             try:
                 os.makedirs(output_dir, exist_ok=True)
             except Exception as e:
-                self.monitor.log_event('validation_failed', 
-                    {'path': output_path, 
-                     'reason': 'Cannot create output directory',
-                     'error': str(e)}, 
+                self.monitor.log_event('output_directory_creation_failed', 
+                    {'directory': output_dir, 'error': str(e)}, 
                     severity='ERROR')
                 return False
+        
+        # Check if output file already exists (warn but allow)
+        if os.path.exists(output_path):
+            self.monitor.log_event('output_file_exists', 
+                {'file': output_path, 'action': 'will_overwrite'}, 
+                severity='WARNING')
         
         return True
     
