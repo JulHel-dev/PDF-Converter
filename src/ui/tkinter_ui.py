@@ -1006,7 +1006,10 @@ class TkinterConverterApp:
     def start_batch_conversion(self):
         """Start batch folder conversion."""
         if not self.current_folder or not self.batch_files:
-            messagebox.showwarning("No Folder", "Please select a folder first using 'Open Folder'.")
+            messagebox.showwarning(
+                "No Folder Selected", 
+                "Please select a folder with supported files using 'Open Folder' before starting batch conversion."
+            )
             return
         
         if not self.format_var.get():
