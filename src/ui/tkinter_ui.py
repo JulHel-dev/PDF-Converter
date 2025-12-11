@@ -45,6 +45,8 @@ class TkinterConverterApp:
         # Application state
         self.current_file: Optional[Path] = None
         self.current_format: Optional[str] = None
+        self.current_folder: Optional[str] = None  # For batch conversion
+        self.batch_files: List[str] = []  # List of files in current folder
         self.conversion_history: List[Dict] = []
         self.is_converting: bool = False
         self.pdf_images: List = []
@@ -569,6 +571,10 @@ class TkinterConverterApp:
                 )
                 return
             
+            # Store folder and files for batch conversion
+            self.current_folder = safe_path
+            self.batch_files = files
+            
             # Update status
             self.file_count_label.config(text=f"{len(files)} files")
             self._update_status(f"Folder loaded: {len(files)} files")
@@ -610,6 +616,8 @@ class TkinterConverterApp:
         """Clear current file selection and reset UI."""
         self.current_file = None
         self.current_format = None
+        self.current_folder = None
+        self.batch_files = []
         self.pdf_images = []
         self.current_page = 0
         self.zoom_level = 100
@@ -818,6 +826,142 @@ class TkinterConverterApp:
                 False, msg
             ))
     
+    def _run_batch_conversion(self, folder_path: str, output_format: str):
+        """Run batch conversion in background thread."""
+        success_count = 0
+        fail_count = 0
+        total_files = len(self.batch_files)
+        
+        try:
+            self.monitor.log_event('batch_conversion_started', {
+                'folder': folder_path,
+                'file_count': total_files,
+                'format': output_format
+            }, severity='INFO')
+            
+            for i, file_path in enumerate(self.batch_files, 1):
+                try:
+                    # Update status on main thread
+                    self.root.after(0, lambda idx=i, total=total_files: 
+                        self._update_status(f"Converting file {idx}/{total}...")
+                    )
+                    
+                    # Detect format
+                    input_format = detect_format(file_path)
+                    if not input_format:
+                        self._add_log_entry(
+                            f"Skipped {os.path.basename(file_path)}: Unknown format",
+                            'WARNING'
+                        )
+                        fail_count += 1
+                        continue
+                    
+                    # Check if conversion is supported
+                    from src.utils.format_detector import is_conversion_supported
+                    if not is_conversion_supported(input_format, output_format):
+                        self.root.after(0, lambda fname=os.path.basename(file_path): 
+                            self._add_log_entry(
+                                f"Skipped {fname}: Conversion not supported",
+                                'WARNING'
+                            )
+                        )
+                        fail_count += 1
+                        continue
+                    
+                    # Generate output path
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    safe_filename = sanitize_filename(f"{base_name}.{output_format}")
+                    output_path = os.path.join(settings.OUTPUT_FOLDER, safe_filename)
+                    
+                    # Get converter
+                    converter = get_converter(input_format)
+                    if not converter:
+                        self.root.after(0, lambda fname=os.path.basename(file_path): 
+                            self._add_log_entry(
+                                f"Skipped {fname}: No converter available",
+                                'ERROR'
+                            )
+                        )
+                        fail_count += 1
+                        continue
+                    
+                    # Convert
+                    if converter.convert(file_path, output_path, output_format):
+                        self.root.after(0, lambda inp=file_path, out=output_path: 
+                            self._add_history_entry(
+                                inp,
+                                out,
+                                f"{ICONS['success']} Success"
+                            )
+                        )
+                        success_count += 1
+                    else:
+                        self.root.after(0, lambda inp=file_path: 
+                            self._add_history_entry(
+                                inp,
+                                "",
+                                f"{ICONS['error']} Failed"
+                            )
+                        )
+                        fail_count += 1
+                        
+                except Exception as e:
+                    self.monitor.log_event('batch_file_error', {
+                        'file': os.path.basename(file_path),
+                        'error': str(e)
+                    }, severity='ERROR')
+                    fail_count += 1
+            
+            # Completion
+            self.monitor.log_event('batch_conversion_complete', {
+                'total': total_files,
+                'success': success_count,
+                'failed': fail_count
+            }, severity='INFO')
+            
+            # Update UI on main thread
+            self.root.after(0, lambda s=success_count, f=fail_count, t=total_files: 
+                self._on_batch_conversion_complete(s, f, t)
+            )
+            
+        except Exception as e:
+            self.monitor.log_event('batch_conversion_error', {
+                'error': str(e),
+                'error_type': type(e).__name__
+            }, severity='ERROR')
+            
+            error_msg = str(e)
+            self.root.after(0, lambda msg=error_msg: 
+                self._on_batch_conversion_complete(0, 0, 0, msg)
+            )
+    
+    def _on_batch_conversion_complete(self, success_count: int, fail_count: int, total: int, error: str = None):
+        """Handle batch conversion completion (called on main thread)."""
+        self.is_converting = False
+        self.progress.stop()
+        self.progress.pack_forget()
+        
+        if error:
+            self._update_status("Batch conversion failed")
+            self._add_log_entry(f"Batch conversion failed: {error}", 'ERROR')
+            messagebox.showerror("Batch Conversion Failed", f"Error: {error}")
+        else:
+            self._update_status(f"Batch conversion complete: {success_count}/{total} successful")
+            self._add_log_entry(
+                f"Batch conversion complete: {success_count} successful, {fail_count} failed out of {total} files",
+                'INFO'
+            )
+            
+            # Show summary
+            messagebox.showinfo(
+                "Batch Conversion Complete",
+                f"Batch conversion completed!\n\n"
+                f"✅ Successful: {success_count}\n"
+                f"❌ Failed: {fail_count}\n"
+                f"📁 Total: {total}\n\n"
+                f"Output folder: {settings.OUTPUT_FOLDER}"
+            )
+    
     def _on_conversion_complete(self, success: bool, result: str):
         """Handle conversion completion (called on main thread)."""
         self.is_converting = False
@@ -861,7 +1005,7 @@ class TkinterConverterApp:
     
     def start_batch_conversion(self):
         """Start batch folder conversion."""
-        if not self.file_count_label.cget('text'):
+        if not self.current_folder or not self.batch_files:
             messagebox.showwarning("No Folder", "Please select a folder first using 'Open Folder'.")
             return
         
@@ -869,8 +1013,35 @@ class TkinterConverterApp:
             messagebox.showwarning("No Format", "Please select an output format.")
             return
         
-        # This is a simplified implementation
-        messagebox.showinfo("Batch Conversion", "Batch conversion feature coming soon!")
+        if self.is_converting:
+            messagebox.showinfo("Busy", "Conversion already in progress.")
+            return
+        
+        output_format = self.format_var.get().lower()
+        
+        # Confirm batch conversion
+        response = messagebox.askyesno(
+            "Batch Conversion",
+            f"Convert {len(self.batch_files)} files to {output_format.upper()}?\n\n"
+            f"Output folder: {settings.OUTPUT_FOLDER}"
+        )
+        
+        if not response:
+            return
+        
+        # Start batch conversion in background thread
+        self.is_converting = True
+        self._update_status("Batch converting...")
+        self.progress.pack(side=tk.LEFT, padx=10)
+        self.progress.start(10)
+        self._add_log_entry(f"Starting batch conversion: {len(self.batch_files)} files -> {output_format.upper()}", 'INFO')
+        
+        thread = threading.Thread(
+            target=self._run_batch_conversion,
+            args=(self.current_folder, output_format),
+            daemon=True
+        )
+        thread.start()
     
     def _load_preview(self):
         """Load preview based on file type."""
