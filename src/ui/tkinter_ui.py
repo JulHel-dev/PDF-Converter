@@ -830,7 +830,10 @@ class TkinterConverterApp:
         """Run batch conversion in background thread."""
         success_count = 0
         fail_count = 0
-        total_files = len(self.batch_files)
+        
+        # Create local copy to avoid race conditions with UI modifications
+        batch_files = list(self.batch_files)
+        total_files = len(batch_files)
         
         try:
             self.monitor.log_event('batch_conversion_started', {
@@ -839,8 +842,29 @@ class TkinterConverterApp:
                 'format': output_format
             }, severity='INFO')
             
-            for i, file_path in enumerate(self.batch_files, 1):
+            for i, file_path in enumerate(batch_files, 1):
                 try:
+                    # Check file still exists and is accessible
+                    if not os.path.exists(file_path):
+                        self.root.after(0, lambda fname=os.path.basename(file_path): 
+                            self._add_log_entry(
+                                f"Skipped {fname}: File not found",
+                                'WARNING'
+                            )
+                        )
+                        fail_count += 1
+                        continue
+                    
+                    if not os.path.isfile(file_path):
+                        self.root.after(0, lambda fname=os.path.basename(file_path): 
+                            self._add_log_entry(
+                                f"Skipped {fname}: Not a file",
+                                'WARNING'
+                            )
+                        )
+                        fail_count += 1
+                        continue
+                    
                     # Update status on main thread
                     self.root.after(0, lambda idx=i, total=total_files: 
                         self._update_status(f"Converting file {idx}/{total}...")
@@ -849,9 +873,11 @@ class TkinterConverterApp:
                     # Detect format
                     input_format = detect_format(file_path)
                     if not input_format:
-                        self._add_log_entry(
-                            f"Skipped {os.path.basename(file_path)}: Unknown format",
-                            'WARNING'
+                        self.root.after(0, lambda fname=os.path.basename(file_path): 
+                            self._add_log_entry(
+                                f"Skipped {fname}: Unknown format",
+                                'WARNING'
+                            )
                         )
                         fail_count += 1
                         continue
@@ -910,6 +936,20 @@ class TkinterConverterApp:
                         'file': os.path.basename(file_path),
                         'error': str(e)
                     }, severity='ERROR')
+                    # Update UI with failure information
+                    self.root.after(0, lambda inp=file_path, err=str(e): 
+                        self._add_history_entry(
+                            inp,
+                            "",
+                            f"{ICONS['error']} Error: {err[:50]}"
+                        )
+                    )
+                    self.root.after(0, lambda fname=os.path.basename(file_path), err=str(e): 
+                        self._add_log_entry(
+                            f"Error processing {fname}: {err}",
+                            'ERROR'
+                        )
+                    )
                     fail_count += 1
             
             # Completion
@@ -956,9 +996,9 @@ class TkinterConverterApp:
             messagebox.showinfo(
                 "Batch Conversion Complete",
                 f"Batch conversion completed!\n\n"
-                f"✅ Successful: {success_count}\n"
-                f"❌ Failed: {fail_count}\n"
-                f"📁 Total: {total}\n\n"
+                f"Successful: {success_count}\n"
+                f"Failed: {fail_count}\n"
+                f"Total: {total}\n\n"
                 f"Output folder: {settings.OUTPUT_FOLDER}"
             )
     
@@ -1005,7 +1045,11 @@ class TkinterConverterApp:
     
     def start_batch_conversion(self):
         """Start batch folder conversion."""
-        if not self.current_folder or not self.batch_files:
+        # Ensure folder and files are in sync (defensive programming)
+        assert bool(self.current_folder) == bool(self.batch_files), \
+            "Internal error: current_folder and batch_files out of sync"
+        
+        if not self.current_folder:
             messagebox.showwarning(
                 "No Folder Selected", 
                 "Please select a folder with supported files using 'Open Folder' before starting batch conversion."
